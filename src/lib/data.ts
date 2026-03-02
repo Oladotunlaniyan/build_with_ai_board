@@ -10,7 +10,6 @@ import {
   serverTimestamp,
   query,
   where,
-  orderBy,
   getDocs,
 } from 'firebase/firestore/lite';
 import { initializeFirebase } from '@/firebase/index.server';
@@ -20,7 +19,9 @@ const { firestore } = initializeFirebase();
 
 export async function getApprovedProjects(): Promise<Project[]> {
     const projectsCol = collection(firestore, 'projects');
-    const q = query(projectsCol, where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
+    // The query for filtering by status and ordering by date requires a composite index.
+    // To avoid this, we filter first, then sort the results in the application.
+    const q = query(projectsCol, where('status', '==', 'approved'));
     const querySnapshot = await getDocs(q);
     const projects = querySnapshot.docs.map(doc => {
         const data = doc.data();
@@ -32,6 +33,10 @@ export async function getApprovedProjects(): Promise<Project[]> {
             createdAt: data.createdAt.toDate(),
         } as Project;
     });
+
+    // Sort projects by creation date in descending order.
+    projects.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
     return projects;
 }
 
