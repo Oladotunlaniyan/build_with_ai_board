@@ -1,9 +1,6 @@
-'use client';
-
+import { Suspense } from 'react';
 import ProjectGrid from '@/components/projects/project-grid';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import type { Project } from '@/lib/types';
+import { getApprovedProjects } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function ProjectGridSkeleton() {
@@ -19,29 +16,15 @@ function ProjectGridSkeleton() {
     )
 }
 
+async function ProjectsList() {
+  const projects = await getApprovedProjects();
+  return <ProjectGrid projects={projects} />;
+}
+
 export default function Home() {
-  const firestore = useFirestore();
-
-  const projectsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'projects'), 
-      where('status', '==', 'approved'), 
-      orderBy('createdAt', 'desc')
-    );
-  }, [firestore]);
-
-  const { data: projects, isLoading } = useCollection<Project>(projectsQuery);
-
-  if (isLoading) {
-    return <ProjectGridSkeleton />;
-  }
-
-  const projectsWithDates = (projects || []).map(p => ({
-    ...p,
-    // @ts-ignore Firestore Timestamps need to be converted to JS Dates
-    createdAt: p.createdAt?.toDate ? p.createdAt.toDate() : new Date(),
-  }));
-
-  return <ProjectGrid projects={projectsWithDates} />;
+  return (
+      <Suspense fallback={<ProjectGridSkeleton />}>
+        <ProjectsList />
+      </Suspense>
+  );
 }
