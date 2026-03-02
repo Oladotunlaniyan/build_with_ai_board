@@ -26,15 +26,12 @@ service cloud.firestore {
     }
 
     match /projects/{projectId} {
-      // Get: More permissive, for reading single documents.
-      // Public can get approved projects, owners their own, and admins any.
-      allow get: if (resource.data.status == 'approved') || 
+      // Read: Public can read approved projects.
+      // Owners can read their own projects.
+      // Admins can read any project.
+      allow read: if (resource.data.status == 'approved') || 
                   (isSignedIn() && resource.data.userId == request.auth.uid) || 
                   isAdmin();
-      
-      // List: More restrictive, for queries. Only admins can query the collection directly.
-      // Public data is exposed via server-side functions.
-      allow list: if isAdmin();
       
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       
