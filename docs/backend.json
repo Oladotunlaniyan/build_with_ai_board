@@ -1,0 +1,315 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application, capable of submitting projects and (for admins) moderating them.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for authentication.",
+          "format": "email"
+        },
+        "nickname": {
+          "type": "string",
+          "description": "The user's chosen nickname, displayed on project cards."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the application (e.g., 'user', 'admin')."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "nickname",
+        "role"
+      ]
+    },
+    "Project": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Project",
+      "type": "object",
+      "description": "Represents a project submitted by a student for the 'GDGOC Unilorin Build With AI Demo Board' showcase.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Project entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the project."
+        },
+        "shortDescription": {
+          "type": "string",
+          "description": "A brief summary of the project, displayed on project cards."
+        },
+        "fullDescription": {
+          "type": "string",
+          "description": "The comprehensive description of the project."
+        },
+        "screenshotUrl": {
+          "type": "string",
+          "description": "URL to the project's main screenshot or image.",
+          "format": "uri"
+        },
+        "liveUrl": {
+          "type": "string",
+          "description": "URL to the live deployed version of the project.",
+          "format": "uri"
+        },
+        "githubUrl": {
+          "type": "string",
+          "description": "URL to the project's GitHub repository.",
+          "format": "uri"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current moderation status of the project (e.g., 'pending', 'approved', 'rejected')."
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "Timestamp when the project was submitted.",
+          "format": "date-time"
+        },
+        "approvedDate": {
+          "type": "string",
+          "description": "Timestamp when the project was approved, if applicable.",
+          "format": "date-time"
+        },
+        "reviewerId": {
+          "type": "string",
+          "description": "Reference to the User who approved or rejected the project. (Relationship: User 1:N Project)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who submitted this project. (Relationship: User 1:N Project)"
+        },
+        "aiToolIds": {
+          "type": "array",
+          "description": "References to the AI Tools used in this project. (Relationship: AITool N:N Project)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "techStackIds": {
+          "type": "array",
+          "description": "References to the Tech Stack items used in this project. (Relationship: TechStack N:N Project)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "batchId": {
+          "type": "string",
+          "description": "Reference to the Batch this project belongs to. (Relationship: Batch 1:N Project)"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "shortDescription",
+        "fullDescription",
+        "screenshotUrl",
+        "liveUrl",
+        "githubUrl",
+        "status",
+        "submissionDate",
+        "userId",
+        "aiToolIds",
+        "techStackIds",
+        "batchId"
+      ]
+    },
+    "AITool": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AITool",
+      "type": "object",
+      "description": "Represents a specific AI tool or technology utilized in projects.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AI Tool entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the AI tool (e.g., 'TensorFlow', 'ChatGPT API')."
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional description of the AI tool."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "TechStack": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TechStack",
+      "type": "object",
+      "description": "Represents a technology or framework used in projects.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Tech Stack entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the technology or framework (e.g., 'React', 'Python', 'MongoDB')."
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional description of the technology."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Batch": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Batch",
+      "type": "object",
+      "description": "Represents a specific batch or cohort of the 'Build With AI' program.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Batch entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the batch (e.g., 'Spring 2023', 'Batch 1')."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the batch.",
+          "format": "date"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The end date of the batch.",
+          "format": "date"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "startDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "user",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Access is restricted to the user themselves (for read/update) and administrators (for read). Includes `userId` (document ID) for path-based authorization.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "user",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Dedicated collection for admin role management. The existence of a document with `adminId` matching `request.auth.uid` grants admin privileges. Authorization relies on `exists()` checks, ensuring independence.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The unique identifier of an administrator, matching Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/projects/{projectId}",
+        "definition": {
+          "entityName": "project",
+          "schema": {
+            "$ref": "#/backend/entities/Project"
+          },
+          "description": "Contains all submitted projects (pending, approved, rejected). Includes denormalized `userId` (renamed to `ownerId` for clarity in rules) for ownership authorization and `status` for public/private visibility control. Both are critical for Authorization Independence and QAPs.",
+          "params": [
+            {
+              "name": "projectId",
+              "description": "The unique identifier of the project."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ai_tools/{aiToolId}",
+        "definition": {
+          "entityName": "aiTool",
+          "schema": {
+            "$ref": "#/backend/entities/AITool"
+          },
+          "description": "Globally accessible catalog of AI tools. Publicly readable.",
+          "params": [
+            {
+              "name": "aiToolId",
+              "description": "The unique identifier of an AI tool."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/tech_stack/{techStackId}",
+        "definition": {
+          "entityName": "techStack",
+          "schema": {
+            "$ref": "#/backend/entities/TechStack"
+          },
+          "description": "Globally accessible catalog of tech stack items. Publicly readable.",
+          "params": [
+            {
+              "name": "techStackId",
+              "description": "The unique identifier of a tech stack item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/batches/{batchId}",
+        "definition": {
+          "entityName": "batch",
+          "schema": {
+            "$ref": "#/backend/entities/Batch"
+          },
+          "description": "Globally accessible catalog of program batches. Publicly readable.",
+          "params": [
+            {
+              "name": "batchId",
+              "description": "The unique identifier of a batch."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to adhere strictly to the CORE DESIGN PRINCIPLES and DESIGN STRATEGY MANDATES, prioritizing authorization independence, clarity, and scalability. \n\n**Authorization Independence:**\n1.  **Users (`/users/{userId}`):** User profiles are secured by path-based ownership. The `userId` in the path directly corresponds to `request.auth.uid`, ensuring that rules can validate ownership without needing `get()` operations on other documents. This allows users to read/update their own profiles atomically.\n2.  **Projects (`/projects/{projectId}`):** This collection is central to the application's data flow and is designed with critical denormalization:\n    *   The `userId` (submitter's ID) is denormalized directly onto each `Project` document as `ownerId`. This allows project owners to manage their own submissions (e.g., edit a 'pending' project) by comparing `request.auth.uid` with `resource.data.ownerId` directly on the `Project` document, eliminating `get()` calls to the `/users` collection for basic ownership checks.\n    *   The `status` field (`pending`, `approved`, `rejected`) is also on the `Project` document. Public read access to projects is granted *only* if `resource.data.status == 'approved'`. This check is performed directly on the requested document, preventing `get()` calls to infer visibility.\n3.  **Admin Roles (`/roles_admin/{adminId}`):** Admin status is determined by the *existence* of a document in this collection where the document ID matches the `request.auth.uid`. Firebase Security Rules can use the `exists()` function to check for admin privileges. This is highly performant and doesn't require reading the full `User` document, thus maintaining authorization independence and supporting DBAC (Database-Backed Access Control) via existence over content.\n4.  **Static Data (`/ai_tools`, `/tech_stack`, `/batches`):** These collections are publicly readable and do not require any user-specific authorization or `get()` calls for access.\n\n**QAPs (Rules are not Filters) Support:**\n1.  **Homepage Project Board (`/projects` list):** The structure allows for secure `list` operations for the homepage. Rules will enforce that `list` queries for public users *must* include a filter for `status == 'approved'`. If a query attempts to list projects without this filter, or for a different status, the rule will deny it, ensuring that only approved projects are retrieved by unauthorized users (QAP compliant, as the rule actively denies non-compliant requests).\n2.  **User's Submitted Projects (`/projects` list for owner):** Authenticated users can query for their own projects by filtering `ownerId == request.auth.uid`. The rules will ensure that only projects matching the requesting user's ID are returned, or access is denied if the filter is missing or incorrect.\n3.  **Admin Moderation Dashboard (`/projects` list for admin):** Administrators, whose `uid` exists in `/roles_admin`, will be granted `list` access to the entire `/projects` collection. This allows them to query and view projects of all statuses without requiring specific filters, directly supporting the Admin Moderation Page requirement and adhering to QAPs for privileged users.\n\n**Structural Segregation:**\n*   **Users:** `/users/{userId}` for user-specific data.\n*   **Projects:** A single `/projects/{projectId}` collection holds all projects (pending, approved, rejected). This simplifies admin moderation (a single collection to list from) and project submission, while robust security rules leveraging `status` and `ownerId` manage public, owner, and admin access without requiring separate collections for different states (e.g., no `/public_projects`).\n*   **Static Lookups:** Dedicated top-level collections like `/ai_tools`, `/tech_stack`, `/batches` provide clear, public read-only access to global lookup data.\n*   **Roles:** A dedicated `/roles_admin/{adminId}` collection is used solely for robust admin role checking."
+  }
+}
