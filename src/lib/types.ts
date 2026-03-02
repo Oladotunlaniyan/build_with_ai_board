@@ -13,7 +13,6 @@ export type Project = {
   fullDescription: string;
   liveUrl: string;
   githubUrl: string;
-  aiTool: string;
   techStack: string[];
   batch: string;
   status: ProjectStatus;

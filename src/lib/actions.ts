@@ -12,8 +12,7 @@ const ProjectSchema = z.object({
   screenshotHint: z.string(),
   liveUrl: z.string().url('Please provide a valid live URL.'),
   githubUrl: z.string().url('Please provide a valid GitHub URL.'),
-  aiTool: z.string().min(1, 'AI Tool is required.'),
-  techStack: z.string(), // Comma-separated string
+  techStack: z.string().min(1, 'At least one tech stack item is required.'),
   batch: z.string().min(4, 'Batch is required.'),
   studentId: z.string(),
   studentNickname: z.string(),
@@ -39,7 +38,6 @@ export async function submitProject(
     screenshotHint: formData.get('screenshotHint'),
     liveUrl: formData.get('liveUrl'),
     githubUrl: formData.get('githubUrl'),
-    aiTool: formData.get('aiTool'),
     techStack: formData.get('techStack'),
     batch: formData.get('batch'),
     studentId: formData.get('studentId'),

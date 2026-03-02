@@ -5,8 +5,8 @@ import { AuthProvider } from '@/hooks/use-auth';
 import Header from '@/components/header';
 
 export const metadata: Metadata = {
-  title: 'GDGOC Unilorin Build With AI Demo Board',
-  description: 'A minimalist project showcase platform for students participating in GDG On Campus Unilorin Build With AI.',
+  title: 'GDGOC Unilorin Project Board',
+  description: 'A minimalist project showcase platform for students participating in GDG On Campus Unilorin events.',
 };
 
 export default function RootLayout({

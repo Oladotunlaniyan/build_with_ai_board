@@ -1,7 +1,6 @@
 import { getProjectById } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, Github } from 'lucide-react';
 import Link from 'next/link';
@@ -37,8 +36,6 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground mb-8 text-sm">
         <span>by {project.student.nickname}</span>
-        <span className="hidden sm:inline">|</span>
-        <Badge variant="secondary">{project.aiTool}</Badge>
         <span className="hidden sm:inline">|</span>
         <span>Batch {project.batch}</span>
       </div>

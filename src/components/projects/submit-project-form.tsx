@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFormState } from 'react-dom';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,8 +28,7 @@ import {
 } from '@/components/ui/select';
 import { submitProject, type SubmitProjectState } from '@/lib/actions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { suggestProjectTags } from '@/ai/flows/suggest-project-tags-flow';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const projectFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long.'),
@@ -39,7 +37,6 @@ const projectFormSchema = z.object({
   screenshotUrl: z.string().url('Please select a screenshot.'),
   liveUrl: z.string().url('Please provide a valid live URL.'),
   githubUrl: z.string().url('Please provide a valid GitHub URL.'),
-  aiTool: z.string().min(1, 'AI Tool is required.'),
   techStack: z.string().min(1, 'At least one tech stack item is required.'),
   batch: z.string().min(4, 'Batch is required.'),
 });
@@ -52,7 +49,6 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
   const [state, formAction] = useFormState(submitProject, initialState);
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
@@ -63,7 +59,6 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
       screenshotUrl: '',
       liveUrl: '',
       githubUrl: '',
-      aiTool: '',
       techStack: '',
       batch: '2024',
     },
@@ -87,41 +82,6 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
       }
     }
   }, [state, toast, onFormSubmit, form]);
-  
-  const handleSuggestTags = async () => {
-    const description = form.getValues('fullDescription');
-    if (!description || description.length < 50) {
-      toast({
-        title: 'Description too short',
-        description: 'Please provide a more detailed description before suggesting tags.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsSuggesting(true);
-    try {
-      const result = await suggestProjectTags({ projectDescription: description });
-      if (result.aiTools.length > 0) {
-        form.setValue('aiTool', result.aiTools[0]);
-      }
-      if (result.techStack.length > 0) {
-        form.setValue('techStack', result.techStack.join(', '));
-      }
-      toast({
-        title: 'Suggestions Applied!',
-        description: 'AI-powered suggestions have been added to your form.'
-      })
-    } catch (error) {
-      console.error('Failed to suggest tags:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not generate AI suggestions at this time.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSuggesting(false);
-    }
-  };
 
   return (
     <Form {...form}>
@@ -136,7 +96,7 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
             <FormItem>
               <FormLabel>Project Title</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., AI-Powered Chatbot" {...field} />
+                <Input placeholder="e.g., My Awesome Project" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -168,45 +128,20 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
             </FormItem>
           )}
         />
-        <div className="space-y-2">
-            <div className="flex justify-between items-center">
-                <FormLabel>AI Tools & Tech Stack</FormLabel>
-                <Button type="button" variant="outline" size="sm" onClick={handleSuggestTags} disabled={isSuggesting}>
-                    {isSuggesting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Suggest with AI
-                </Button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-                control={form.control}
-                name="aiTool"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormControl>
-                        <Input placeholder="Primary AI Tool (e.g., TensorFlow)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-            <FormField
-                control={form.control}
-                name="techStack"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormControl>
-                        <Input placeholder="Tech Stack (comma-separated)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-            </div>
-        </div>
+        
+        <FormField
+            control={form.control}
+            name="techStack"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Tech Stack</FormLabel>
+                <FormControl>
+                    <Input placeholder="Tech Stack (comma-separated, e.g. Next.js, Firebase)" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
 
         <FormField
           control={form.control}

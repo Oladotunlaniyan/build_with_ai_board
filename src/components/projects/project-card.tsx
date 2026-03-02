@@ -2,7 +2,6 @@ import type { Project } from '@/lib/types';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 type ProjectCardProps = {
   project: Project;
@@ -30,8 +29,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
             {project.shortDescription}
           </p>
         </CardContent>
-        <CardFooter className="p-4 pt-0 flex justify-between items-center text-xs">
-          <Badge variant="secondary">{project.aiTool}</Badge>
+        <CardFooter className="p-4 pt-0 flex justify-end items-center text-xs">
           <span className="text-muted-foreground">by {project.student.nickname}</span>
         </CardFooter>
       </Card>
