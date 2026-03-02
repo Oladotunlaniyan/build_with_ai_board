@@ -1,227 +1,47 @@
-/**
- * Core Philosophy:
- * This ruleset implements a multi-tiered access control model for a project showcase application.
- * It combines user ownership for personal data and project submissions, role-based access for administrators
- * who moderate content, and status-based public access for approved projects. The primary goal is to
- * ensure that users have full control over their own data and submissions, while admins have the necessary
- * privileges for moderation, and the public can only view vetted content.
- *
- * Data Structure:
- * - /users/{userId}: Stores private user profiles, accessible only by the owning user or an admin.
- * - /roles_admin/{adminId}: A special-purpose collection where the existence of a document signifies admin privileges.
- *   This allows for fast, efficient role checks using `exists()`.
- * - /projects/{projectId}: A central collection for all project submissions. Each project document contains a
- *   denormalized `userId` field to enforce ownership for edits and a `status` field ('pending', 'approved', 'rejected')
- *   to control public visibility.
- * - /ai_tools, /tech_stack, /batches: Top-level collections for publicly readable lookup data, which are only writable by admins.
- *
- * Key Security Decisions:
- * - Admin Listing: User enumeration is explicitly disallowed by denying list operations on the `/users` collection.
- * - Admin Roles: Admin status is managed by the existence of a document in `/roles_admin/{userId}`. This is more
- *   secure and performant than checking a field on a user document, as it isolates authorization logic.
- * - Public Visibility: Public read access to a project is granted only if its `status` field is 'approved'. This ensures
- *   that pending or rejected submissions remain private.
- * - Immutability: Critical relational fields, such as a project's `userId`, are immutable after creation to maintain
- *   data integrity and prevent unauthorized re-assignment of ownership.
- * - Denormalization for Authorization: Project documents contain a `userId` field, and user documents contain a `role` field.
- *   This denormalization is crucial for writing simple, performant, and non-recursive security rules that do not rely on
- *   slow and costly `get()` calls to other documents for primary authorization decisions.
- *
- * Structural Segregation:
- * The ruleset uses a single `/projects` collection and leverages a `status` field within each document to manage
- * the lifecycle from private draft to public content. This approach simplifies data management and querying for admins,
- * who need to see all projects in one place. Public access is then safely layered on top using rules that inspect this status field.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --------------------------------
-    // Helper Functions
-    // --------------------------------
-
-    /**
-     * Returns true if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Returns true if the request UID matches the provided userId.
-     * This is the foundation of the user-ownership model.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Returns true if the requesting user is an administrator.
-     * Checks for the existence of a document in the dedicated admin roles collection.
-     */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    /**
-     * Returns true if the document being operated on already exists.
-     * Used to protect all update and delete operations from acting on non-existent data.
-     */
-    function isExistingDoc() {
-      return resource != null;
-    }
-
-    /**
-     * On create, validates the incoming document's ID matches the user's auth UID.
-     * Ensures path and document data are consistent for user-scoped collections.
-     */
-    function hasValidUserIdOnCreate(userId) {
-      return request.resource.data.id == userId;
-    }
-
-    /**
-     * On update, ensures the document's ID field is immutable.
-     * Prevents re-assigning the core identity of the user document.
-     */
-    function isUserIdImmutable() {
-      return request.resource.data.id == resource.data.id;
-    }
-
-    /**
-     * On project creation, validates the submitter's ID is set correctly.
-     */
-    function isNewProjectOwner() {
-      return request.resource.data.userId == request.auth.uid;
-    }
-
-    /**
-     * On project update/delete, validates the user owns the existing document.
-     */
-    function isExistingProjectOwner() {
-      return isExistingDoc() && resource.data.userId == request.auth.uid;
-    }
-
-    /**
-     * On project update, ensures the owner field is not changed.
-     */
-    function isProjectOwnerImmutable() {
-      return request.resource.data.userId == resource.data.userId;
-    }
-
-    /**
-     * On create, ensures a regular user can only create a 'pending' project and cannot set admin-level fields.
-     */
-    function hasValidInitialProjectData() {
-      let incomingData = request.resource.data;
-      return incomingData.status == 'pending'
-          && !('reviewerId' in incomingData)
-          && !('approvedDate' in incomingData);
-    }
-
-    /**
-     * On update, ensures a regular user cannot change admin-level fields.
-     */
-    function userCannotEscalateProject() {
-      let existingData = resource.data;
-      let incomingData = request.resource.data;
-      return incomingData.status == existingData.status
-          && incomingData.reviewerId == existingData.reviewerId
-          && incomingData.approvedDate == existingData.approvedDate;
-    }
-
-
-    // --------------------------------
-    // Collection Rules
-    // --------------------------------
-
-    /**
-     * @description Users can create their own profile, read and update it. Admins can read user profiles for moderation.
-     * @path /users/{userId}
-     * @allow (create) An authenticated user creates their own profile document, where the document ID matches their UID.
-     * @deny (list) Any user, including an admin, attempts to list all users in the collection.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
-     */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if false;
-      allow create: if isOwner(userId) && hasValidUserIdOnCreate(userId);
-      allow update: if isOwner(userId) && isUserIdImmutable() && request.resource.data.role == resource.data.role;
-      allow delete: if isOwner(userId) && isExistingDoc();
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
-    /**
-     * @description A private collection for managing admin roles. Only readable by admins for verification purposes. All writes are denied to prevent privilege escalation from the client.
-     * @path /roles_admin/{adminId}
-     * @allow (get) An authenticated admin reads an admin role document.
-     * @deny (create) Any user attempts to create a document to make themselves an admin.
-     * @principle Secures admin role management by making it read-only from the client-side.
-     */
-    match /roles_admin/{adminId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    match /admins/{userId} {
+      allow read, list: if isAdmin();
+      allow write: if false; // Should be managed from server/console
     }
 
-    /**
-     * @description Manages access to projects. Unauthenticated users can read approved projects. Authenticated users can create projects and manage their own pending submissions. Admins have full access.
-     * @path /projects/{projectId}
-     * @allow (get) Any user reads a project document where `status` is 'approved'.
-     * @deny (update) A project owner tries to update their project after it has been 'approved'.
-     * @principle Implements a content lifecycle: user submission -> admin moderation -> public visibility.
-     */
     match /projects/{projectId} {
-      allow get: if (isExistingDoc() && resource.data.status == 'approved') || isExistingProjectOwner() || isAdmin();
-      allow list: if isSignedIn() || isAdmin();
-      allow create: if isSignedIn() && isNewProjectOwner() && hasValidInitialProjectData();
-      allow update: if (isAdmin() && isExistingDoc() && isProjectOwnerImmutable()) || (isExistingProjectOwner() && resource.data.status == 'pending' && isProjectOwnerImmutable() && userCannotEscalateProject());
-      allow delete: if (isAdmin() && isExistingDoc()) || (isExistingProjectOwner() && resource.data.status == 'pending');
-    }
-
-    /**
-     * @description A public, read-only catalog of AI tools. Writable only by administrators.
-     * @path /ai_tools/{aiToolId}
-     * @allow (list) Any user or client lists all available AI tools.
-     * @deny (create) A regular authenticated user attempts to add a new AI tool to the catalog.
-     * @principle Provides public read access for global lookup data while restricting modifications to admins.
-     */
-    match /ai_tools/{aiToolId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
-    }
-
-    /**
-     * @description A public, read-only catalog of technologies. Writable only by administrators.
-     * @path /tech_stack/{techStackId}
-     * @allow (list) Any user or client lists all available technologies.
-     * @deny (create) A regular authenticated user attempts to add a new technology to the catalog.
-     * @principle Provides public read access for global lookup data while restricting modifications to admins.
-     */
-    match /tech_stack/{techStackId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
-    }
-
-    /**
-     * @description A public, read-only catalog of program batches. Writable only by administrators.
-     * @path /batches/{batchId}
-     * @allow (list) Any user or client lists all available program batches.
-     * @deny (create) A regular authenticated user attempts to add a new batch to the catalog.
-     * @principle Provides public read access for global lookup data while restricting modifications to admins.
-     */
-    match /batches/{batchId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
+      // Public can read approved projects
+      // Owner can read their own projects
+      // Admin can read any project
+      allow read: if (resource.data.status == 'approved') || 
+                  (isSignedIn() && resource.data.userId == request.auth.uid) || 
+                  isAdmin();
+      
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // Admin can update anything.
+      // Owner can update their own project only if it's pending.
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status == 'pending');
+      
+      // Admin can delete anything.
+      // Owner can delete their own project only if it's pending.
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status == 'pending');
     }
   }
 }

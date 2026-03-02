@@ -6,7 +6,15 @@ import { z } from 'zod';
 import { useFormState } from 'react-dom';
 import { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import {
+  useUser,
+  useFirestore,
+  useDoc,
+  useMemoFirebase,
+} from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -48,7 +56,14 @@ const initialState: SubmitProjectState = { message: null, errors: {} };
 export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }) {
   const [state, formAction] = useFormState(submitProject, initialState);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const userDocRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'users', user.uid) : null),
+    [user, firestore]
+  );
+  const { data: userProfile } = useDoc<UserProfile>(userDocRef);
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
@@ -86,8 +101,8 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
   return (
     <Form {...form}>
       <form action={formAction} className="space-y-4">
-        <input type="hidden" name="studentId" value={user?.id} />
-        <input type="hidden" name="studentNickname" value={user?.nickname} />
+        <input type="hidden" name="userId" value={user?.uid || ''} />
+        <input type="hidden" name="userNickname" value={userProfile?.nickname || ''} />
         
         <FormField
           control={form.control}

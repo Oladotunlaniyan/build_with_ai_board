@@ -14,8 +14,8 @@ const ProjectSchema = z.object({
   githubUrl: z.string().url('Please provide a valid GitHub URL.'),
   techStack: z.string().min(1, 'At least one tech stack item is required.'),
   batch: z.string().min(4, 'Batch is required.'),
-  studentId: z.string(),
-  studentNickname: z.string(),
+  userId: z.string().min(1, 'User ID is required.'),
+  userNickname: z.string().min(1, 'User nickname is required.'),
 });
 
 export type SubmitProjectState = {
@@ -40,8 +40,8 @@ export async function submitProject(
     githubUrl: formData.get('githubUrl'),
     techStack: formData.get('techStack'),
     batch: formData.get('batch'),
-    studentId: formData.get('studentId'),
-    studentNickname: formData.get('studentNickname'),
+    userId: formData.get('userId'),
+    userNickname: formData.get('userNickname'),
   });
 
   if (!validatedFields.data || !validatedFields.success) {
@@ -51,16 +51,12 @@ export async function submitProject(
     };
   }
   
-  const { techStack, studentId, studentNickname, ...rest } = validatedFields.data;
+  const { techStack, ...rest } = validatedFields.data;
 
   try {
     await addProject({
       ...rest,
       techStack: techStack.split(',').map(item => item.trim()).filter(Boolean),
-      student: {
-        id: studentId,
-        nickname: studentNickname,
-      },
     });
   } catch (error) {
     return {

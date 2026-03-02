@@ -1,7 +1,4 @@
-import { getProjects } from '@/lib/data';
-import ModerationTable from '@/components/admin/moderation-table';
-import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import ProjectsList from '@/components/admin/projects-list';
 
 export default function AdminPage() {
   return (
@@ -10,25 +7,7 @@ export default function AdminPage() {
       <p className="text-muted-foreground">
         Review and approve or reject student project submissions.
       </p>
-      <Suspense fallback={<AdminTableSkeleton />}>
-        <ProjectsList />
-      </Suspense>
+      <ProjectsList />
     </div>
   );
-}
-
-async function ProjectsList() {
-    const projects = await getProjects();
-    return <ModerationTable projects={projects} />;
-}
-
-function AdminTableSkeleton() {
-    return (
-        <div className="border rounded-lg p-4 space-y-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-        </div>
-    )
 }

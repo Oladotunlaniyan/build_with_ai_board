@@ -6,8 +6,17 @@ import { z } from 'zod';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { useAuth } from '@/hooks/use-auth';
-import { findUserByEmail, addUser } from '@/lib/data';
+import {
+  setDocumentNonBlocking,
+  useAuth as useFirebaseAuth,
+  useFirestore,
+} from '@/firebase';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
+import { doc } from 'firebase/firestore';
+
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -19,7 +28,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -36,7 +51,8 @@ const signupSchema = z.object({
 
 export default function AuthForm() {
   const router = useRouter();
-  const { login } = useAuth();
+  const auth = useFirebaseAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
@@ -53,41 +69,64 @@ export default function AuthForm() {
 
   const onLoginSubmit = async (values: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
-    // Mock login logic
-    const user = await findUserByEmail(values.email);
-    if (user) {
-      // In a real app, you'd verify the password here
-      login(user);
-      toast({ title: 'Login Successful', description: `Welcome back, ${user.nickname}!` });
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({ title: 'Login Successful', description: `Welcome back!` });
       router.push('/');
-    } else {
-      toast({ title: 'Login Failed', description: 'Invalid email or password.', variant: 'destructive' });
+    } catch (error: any) {
+      toast({
+        title: 'Login Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const onSignupSubmit = async (values: z.infer<typeof signupSchema>) => {
     setIsLoading(true);
-    // Mock signup logic
-    const existingUser = await findUserByEmail(values.email);
-    if (existingUser) {
-      toast({ title: 'Signup Failed', description: 'An account with this email already exists.', variant: 'destructive' });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
+      const user = userCredential.user;
+
+      if (user) {
+        const userProfile = {
+          id: user.uid,
+          nickname: values.nickname,
+          email: values.email,
+          role: 'user',
+        };
+        const userDocRef = doc(firestore, 'users', user.uid);
+        setDocumentNonBlocking(userDocRef, userProfile, { merge: false });
+      }
+
+      toast({
+        title: 'Signup Successful',
+        description: `Welcome, ${values.nickname}!`,
+      });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        title: 'Signup Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
       setIsLoading(false);
-      return;
     }
-    const newUser = await addUser({
-      email: values.email,
-      nickname: values.nickname,
-      role: 'user', // Default role
-    });
-    login(newUser);
-    toast({ title: 'Signup Successful', description: `Welcome, ${newUser.nickname}!` });
-    router.push('/');
-    setIsLoading(false);
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-md">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="w-full max-w-md"
+    >
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="login">Login</TabsTrigger>
         <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -96,11 +135,16 @@ export default function AuthForm() {
         <Card>
           <CardHeader>
             <CardTitle>Welcome Back</CardTitle>
-            <CardDescription>Enter your credentials to access your account.</CardDescription>
+            <CardDescription>
+              Enter your credentials to access your account.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
+              <form
+                onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+                className="space-y-6"
+              >
                 <FormField
                   control={loginForm.control}
                   name="email"
@@ -108,7 +152,11 @@ export default function AuthForm() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -128,7 +176,9 @@ export default function AuthForm() {
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Login
                 </Button>
               </form>
@@ -140,11 +190,16 @@ export default function AuthForm() {
         <Card>
           <CardHeader>
             <CardTitle>Create an Account</CardTitle>
-            <CardDescription>Join the showcase by creating a new account.</CardDescription>
+            <CardDescription>
+              Join the showcase by creating a new account.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...signupForm}>
-              <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-6">
+              <form
+                onSubmit={signupForm.handleSubmit(onSignupSubmit)}
+                className="space-y-6"
+              >
                 <FormField
                   control={signupForm.control}
                   name="nickname"
@@ -152,7 +207,10 @@ export default function AuthForm() {
                     <FormItem>
                       <FormLabel>Nickname</FormLabel>
                       <FormControl>
-                        <Input placeholder="Your cool developer name" {...field} />
+                        <Input
+                          placeholder="Your cool developer name"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -165,7 +223,11 @@ export default function AuthForm() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -178,14 +240,20 @@ export default function AuthForm() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Minimum 8 characters" {...field} />
+                        <Input
+                          type="password"
+                          placeholder="Minimum 8 characters"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Sign Up
                 </Button>
               </form>

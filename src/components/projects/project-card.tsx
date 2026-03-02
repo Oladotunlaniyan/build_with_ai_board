@@ -30,7 +30,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
           </p>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-end items-center text-xs">
-          <span className="text-muted-foreground">by {project.student.nickname}</span>
+          <span className="text-muted-foreground">by {project.userNickname}</span>
         </CardFooter>
       </Card>
     </Link>

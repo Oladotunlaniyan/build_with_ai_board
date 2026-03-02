@@ -83,7 +83,7 @@ export default function ModerationTable({ projects }: ModerationTableProps) {
           {projects.map((project) => (
             <TableRow key={project.id}>
               <TableCell className="font-medium">{project.title}</TableCell>
-              <TableCell>{project.student.nickname}</TableCell>
+              <TableCell>{project.userNickname}</TableCell>
               <TableCell>{project.createdAt.toLocaleDateString()}</TableCell>
               <TableCell className="text-right">
                 <ActionButtons project={project} />

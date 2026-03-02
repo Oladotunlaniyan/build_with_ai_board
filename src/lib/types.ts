@@ -3,10 +3,8 @@ export type ProjectStatus = 'pending' | 'approved' | 'rejected';
 export type Project = {
   id: string;
   title: string;
-  student: {
-    id: string;
-    nickname: string;
-  };
+  userId: string;
+  userNickname: string;
   screenshotUrl: string;
   screenshotHint: string;
   shortDescription: string;
@@ -19,7 +17,7 @@ export type Project = {
   createdAt: Date;
 };
 
-export type User = {
+export type UserProfile = {
   id: string;
   email: string;
   nickname: string;
