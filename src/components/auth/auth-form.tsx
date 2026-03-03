@@ -104,7 +104,6 @@ export default function AuthForm() {
         const userDocRef = doc(firestore, 'users', user.uid);
         setDocumentNonBlocking(userDocRef, userProfile, { merge: false });
       }
-
       toast({
         title: 'Signup Successful',
         description: `Welcome, ${values.nickname}!`,
