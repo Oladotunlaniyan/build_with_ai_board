@@ -6,7 +6,6 @@ export type Project = {
   userId: string;
   userNickname: string;
   screenshotUrl: string;
-  screenshotHint: string;
   shortDescription: string;
   fullDescription: string;
   liveUrl: string;

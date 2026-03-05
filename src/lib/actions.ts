@@ -9,7 +9,6 @@ const ProjectSchema = z.object({
   shortDescription: z.string().min(10, 'Short description must be at least 10 characters long.').max(150, 'Short description must be 150 characters or less.'),
   fullDescription: z.string().min(50, 'Full description must be at least 50 characters long.'),
   screenshotUrl: z.string().url('Please provide a valid screenshot URL.'),
-  screenshotHint: z.string(),
   liveUrl: z.string().url('Please provide a valid live URL.'),
   githubUrl: z.string().url('Please provide a valid GitHub URL.'),
   techStack: z.string().min(1, 'At least one tech stack item is required.'),
@@ -27,26 +26,13 @@ export type SubmitProjectState = {
 
 
 export async function submitProject(
-  prevState: SubmitProjectState,
-  formData: FormData
+  data: z.infer<typeof ProjectSchema>
 ): Promise<SubmitProjectState> {
-  const validatedFields = ProjectSchema.safeParse({
-    title: formData.get('title'),
-    shortDescription: formData.get('shortDescription'),
-    fullDescription: formData.get('fullDescription'),
-    screenshotUrl: formData.get('screenshotUrl'),
-    screenshotHint: formData.get('screenshotHint'),
-    liveUrl: formData.get('liveUrl'),
-    githubUrl: formData.get('githubUrl'),
-    techStack: formData.get('techStack'),
-    batch: formData.get('batch'),
-    userId: formData.get('userId'),
-    userNickname: formData.get('userNickname'),
-  });
+  const validatedFields = ProjectSchema.safeParse(data);
 
-  if (!validatedFields.data || !validatedFields.success) {
+  if (!validatedFields.success) {
     return {
-      errors: validatedFields.error?.flatten().fieldErrors,
+      errors: validatedFields.error.flatten().fieldErrors,
       message: 'Validation failed. Please check your input.',
     };
   }

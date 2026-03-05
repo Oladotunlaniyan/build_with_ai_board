@@ -3,18 +3,14 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useFormState } from 'react-dom';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import {
-  useUser,
-  useFirestore,
-  useDoc,
-  useMemoFirebase,
-} from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useFirebaseApp } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
-
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { firebaseConfig } from '@/firebase/config';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -35,14 +31,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { submitProject, type SubmitProjectState } from '@/lib/actions';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Loader2 } from 'lucide-react';
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const projectFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long.'),
   shortDescription: z.string().min(10, 'Short description must be at least 10 characters long.').max(150, 'Short description must be 150 characters or less.'),
   fullDescription: z.string().min(50, 'Full description must be at least 50 characters long.'),
-  screenshotUrl: z.string().url('Please select a screenshot.'),
+  screenshot: z
+    .any()
+    .refine((file) => file, 'Screenshot is required.')
+    .refine((file) => file?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(
+      (file) => ACCEPTED_IMAGE_TYPES.includes(file?.type),
+      ".jpg, .jpeg, .png and .webp files are accepted."
+    ),
   liveUrl: z.string().url('Please provide a valid live URL.'),
   githubUrl: z.string().url('Please provide a valid GitHub URL.'),
   techStack: z.string().min(1, 'At least one tech stack item is required.'),
@@ -51,13 +56,15 @@ const projectFormSchema = z.object({
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
-const initialState: SubmitProjectState = { message: null, errors: {} };
-
 export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }) {
-  const [state, formAction] = useFormState(submitProject, initialState);
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
+  const firebaseApp = useFirebaseApp();
+  const storage = useMemoFirebase(() => getStorage(firebaseApp, firebaseConfig.storageBucket), [firebaseApp]);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
 
   const userDocRef = useMemoFirebase(
     () => (user ? doc(firestore, 'users', user.uid) : null),
@@ -71,7 +78,7 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
       title: '',
       shortDescription: '',
       fullDescription: '',
-      screenshotUrl: '',
+      screenshot: undefined,
       liveUrl: '',
       githubUrl: '',
       techStack: '',
@@ -79,31 +86,76 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
     },
   });
 
+  const screenshotFile = form.watch('screenshot');
+
   useEffect(() => {
-    if (state.message) {
-      if (state.errors) {
-        toast({
-          title: 'Error Submitting Project',
-          description: state.message,
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Success!',
-          description: state.message,
-        });
-        onFormSubmit();
-        form.reset();
-      }
+    let objectUrl: string;
+    if (screenshotFile && screenshotFile.size > 0) {
+      objectUrl = URL.createObjectURL(screenshotFile);
+      setScreenshotPreview(objectUrl);
+
+      return () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+    } else {
+        setScreenshotPreview(null);
     }
-  }, [state, toast, onFormSubmit, form]);
+  }, [screenshotFile]);
+
+  const onSubmit = async (values: ProjectFormValues) => {
+    if (!user || !userProfile) {
+        toast({ title: 'Error', description: 'You must be logged in to submit a project.', variant: 'destructive' });
+        return;
+    }
+
+    setIsSubmitting(true);
+    try {
+        const file = values.screenshot as File;
+        const storageRef = ref(storage, `screenshots/${user.uid}/${Date.now()}_${file.name}`);
+        const uploadTask = await uploadBytes(storageRef, file);
+        const screenshotUrl = await getDownloadURL(uploadTask.ref);
+
+        const { screenshot, ...restOfValues } = values;
+
+        const projectData = {
+            ...restOfValues,
+            screenshotUrl,
+            userId: user.uid,
+            userNickname: userProfile.nickname,
+        };
+
+        const result = await submitProject(projectData);
+
+        if (result.message) {
+            if (result.errors) {
+                toast({
+                    title: 'Error Submitting Project',
+                    description: result.message,
+                    variant: 'destructive',
+                });
+            } else {
+                toast({
+                    title: 'Success!',
+                    description: result.message,
+                });
+                onFormSubmit();
+                form.reset();
+            }
+        }
+    } catch (error: any) {
+        toast({
+            title: 'Submission Failed',
+            description: error.message || 'An unexpected error occurred.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   return (
     <Form {...form}>
-      <form action={formAction} className="space-y-4">
-        <input type="hidden" name="userId" value={user?.uid || ''} />
-        <input type="hidden" name="userNickname" value={userProfile?.nickname || ''} />
-        
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="title"
@@ -160,29 +212,27 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
 
         <FormField
           control={form.control}
-          name="screenshotUrl"
+          name="screenshot"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Screenshot</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a placeholder screenshot" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {PlaceHolderImages.map(img => (
-                    <SelectItem key={img.id} value={img.imageUrl}>
-                      {img.description}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input type="hidden" name="screenshotHint" value={PlaceHolderImages.find(img => img.imageUrl === field.value)?.imageHint || ''} />
+              <FormControl>
+                <Input
+                    type="file"
+                    accept="image/png, image/jpeg, image/webp"
+                    onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        {screenshotPreview && (
+          <div className="relative w-full aspect-video rounded-md border overflow-hidden">
+            <Image src={screenshotPreview} alt="Screenshot preview" fill className="object-cover" />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
@@ -212,33 +262,10 @@ export function SubmitProjectForm({ onFormSubmit }: { onFormSubmit: () => void }
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="batch"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Batch</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your batch" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
         <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit for Review
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? 'Submitting...' : 'Submit for Review'}
             </Button>
         </div>
       </form>

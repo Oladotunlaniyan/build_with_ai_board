@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import Logo from './logo';
 import { ThemeToggle } from './theme-toggle';
-import {
-  useUser,
+import { useUser,
   useFirestore,
   useDoc,
   useMemoFirebase,
@@ -37,11 +36,11 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 max-w-[1200px] items-center justify-between">
+    <header className="border-b border-border">
+      <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-4">
         <Logo />
         <div className="flex items-center space-x-2">
-          {!isLoading && (
+          {!isLoading && ( 
             <>
               {isAuthenticated ? (
                 <>

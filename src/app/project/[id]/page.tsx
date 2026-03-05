@@ -3,11 +3,12 @@
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { notFound, useParams } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { ExternalLink, Github, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { Loader2, Github, ExternalLink } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import type { Project, UserProfile } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -32,67 +33,62 @@ export default function ProjectDetailsPage() {
   }
   
   if (error || !project) {
-    // This could be a permission error or the doc doesn't exist.
-    // In either case, for a public page, it's best to show a 404.
     notFound();
   }
 
   const isAdmin = userProfile?.role === 'admin';
   const isOwner = user?.uid === project.userId;
 
-  // A non-admin/non-owner should not be able to see a non-approved project.
-  // The firestore rules already enforce this, but this is a good client-side check.
   if (project.status !== 'approved' && !isAdmin && !isOwner) {
     notFound();
   }
 
-  // The 'createdAt' field will be a Firebase Timestamp, convert it to a Date.
-  const projectData = {
-    ...project,
-    // @ts-ignore
-    createdAt: project.createdAt?.toDate ? project.createdAt.toDate() : new Date(),
-  };
-
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden border mb-8 shadow-sm">
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-4xl font-bold mb-2">{project.title}</h1>
+        <p className="text-lg text-muted-foreground">{project.shortDescription}</p>
+        <p className="text-sm text-muted-foreground mt-1">Submitted by {project.userNickname} from Batch {project.batch}</p>
+      </div>
+
+      <div className="relative w-full aspect-video rounded-lg overflow-hidden border shadow-sm">
         <Image
-          src={projectData.screenshotUrl}
-          alt={`Screenshot of ${projectData.title}`}
+          src={project.screenshotUrl}
+          alt={`Screenshot of ${project.title}`}
           fill
-          className="object-cover"
+          className="object-contain"
           sizes="100vw"
           priority
-          data-ai-hint={projectData.screenshotHint}
         />
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-semibold mb-4">{projectData.title}</h1>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground mb-8 text-sm">
-        <span>by {projectData.userNickname}</span>
-        <span className="hidden sm:inline">|</span>
-        <span>Batch {projectData.batch}</span>
+      <div className="flex gap-4">
+        <Button asChild>
+            <Link href={project.liveUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" /> Live Demo
+            </Link>
+        </Button>
+        <Button variant="secondary" asChild>
+            <Link href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                <Github className="mr-2 h-4 w-4" /> View on GitHub
+            </Link>
+        </Button>
       </div>
 
-      <div className="prose prose-stone dark:prose-invert max-w-none text-foreground/90">
-        <p className="lead text-lg mb-6">{projectData.shortDescription}</p>
-        <p>{projectData.fullDescription}</p>
+      <div>
+        <h2 className="text-2xl font-semibold mb-4">About this project</h2>
+        <div className="max-w-none">
+            <p>{project.fullDescription}</p>
+        </div>
       </div>
-
-      <div className="mt-10 flex flex-col sm:flex-row gap-4">
-        <Button asChild size="lg">
-          <Link href={projectData.liveUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="mr-2" />
-            View Live Project
-          </Link>
-        </Button>
-        <Button asChild variant="secondary" size="lg">
-          <Link href={projectData.githubUrl} target="_blank" rel="noopener noreferrer">
-            <Github className="mr-2" />
-            View GitHub Repository
-          </Link>
-        </Button>
+      
+      <div>
+          <h3 className="text-xl font-semibold mb-3">Tech Stack</h3>
+          <div className="flex flex-wrap gap-2">
+              {project.techStack.map((tech) => (
+                  <Badge key={tech} variant="secondary">{tech}</Badge>
+              ))}
+          </div>
       </div>
     </div>
   );
